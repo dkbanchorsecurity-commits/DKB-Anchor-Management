@@ -1,0 +1,21 @@
+{
+  "name": "DKB Anchor Security Management",
+  "short_name": "DKB Anchor",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#061423",
+  "theme_color": "#0A2239",
+  "description": "Comprehensive Financial & Operations Dashboard for DKB Anchor Security.",
+  "icons": [
+    {
+      "src": "DKB Anchor Logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "DKB Anchor Logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
