@@ -28,7 +28,7 @@
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
-        body { display: flex; height: 100vh; background-color: var(--bg-color); color: var(--text-color); overflow: hidden; }
+        body { display: flex; height: 100vh; background-color: var(--bg-color); color: var(--text-color); overflow: hidden; width: 100vw; }
 
         /* --- LOGIN SCREEN --- */
         .login-wrapper { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: var(--bg-color); z-index: 9999; display: flex; justify-content: center; align-items: center; transition: 0.4s ease; padding: 20px; }
@@ -54,7 +54,7 @@
         .nav-links li.active { background-color: var(--accent-color); color: var(--bg-color); font-weight: bold; }
 
         /* --- MAIN CONTENT --- */
-        .content { flex: 1; display: flex; flex-direction: column; overflow-y: auto; width: 100%; }
+        .content { flex: 1; display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden; width: 100%; }
         header { background-color: var(--secondary-color); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1a3a5a; flex-wrap: wrap; gap: 15px;}
         .header-left { display: flex; align-items: center; gap: 15px; }
         .menu-toggle { display: none; background: none; border: none; color: var(--accent-color); font-size: 1.5rem; cursor: pointer; }
@@ -84,14 +84,22 @@
         .search-input { width: 100%; padding: 10px 15px 10px 45px; border-radius: 30px; border: 1px solid var(--secondary-color); background: var(--primary-color); color: white; outline: none; }
         .month-filter { background: var(--primary-color); border: 1px solid var(--accent-color); padding: 8px 20px; border-radius: 30px; color: white; font-weight: bold; outline: none; cursor: pointer; }
 
-        .table-container { max-height: calc(100vh - 250px); overflow: auto; border-radius: 10px; background: var(--secondary-color); border: 1px solid #1a3a5a; }
+        .table-container { 
+            max-height: calc(100vh - 250px); 
+            overflow-y: auto; 
+            overflow-x: auto; 
+            -webkit-overflow-scrolling: touch; /* Smooth mobile scroll */
+            border-radius: 10px; 
+            background: var(--secondary-color); 
+            border: 1px solid #1a3a5a; 
+        }
         .table-container::-webkit-scrollbar { width: 8px; height: 8px; }
         .table-container::-webkit-scrollbar-track { background: var(--primary-color); border-radius: 4px; }
         .table-container::-webkit-scrollbar-thumb { background: var(--accent-color); border-radius: 4px; }
 
-        .data-table { width: 100%; border-collapse: collapse; text-align: left; min-width: 900px; }
-        .data-table th { background: var(--primary-color); color: var(--accent-color); padding: 12px 15px; font-size: 0.75rem; text-transform: uppercase; position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.4); }
-        .data-table td { padding: 12px 15px; border-bottom: 1px solid #1a3a5a; font-size: 0.85rem; max-width: 300px; word-wrap: break-word; white-space: normal; line-height: 1.4; }
+        .data-table { width: 100%; border-collapse: collapse; text-align: left; min-width: 850px; }
+        .data-table th { background: var(--primary-color); color: var(--accent-color); padding: 12px 15px; font-size: 0.75rem; text-transform: uppercase; position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.4); white-space: nowrap; }
+        .data-table td { padding: 12px 15px; border-bottom: 1px solid #1a3a5a; font-size: 0.85rem; max-width: 300px; white-space: nowrap; }
         .data-table tr:hover { background: rgba(212, 175, 55, 0.05); }
         .editable-cell { background: rgba(212, 175, 55, 0.1); border: 1px dashed var(--accent-color); padding: 4px; border-radius: 4px; color: var(--accent-hover); cursor: text; font-weight: bold; text-align: center; }
 
@@ -126,17 +134,31 @@
         /* --- MOBILE & PRINT --- */
         .mobile-sidebar-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); z-index: 998; backdrop-filter: blur(3px); }
         .mobile-sidebar-overlay.active { display: block; }
+        
         @media (max-width: 900px) { .charts-grid { grid-template-columns: 1fr; } }
+        
         @media (max-width: 768px) {
             .menu-toggle { display: block; }
-            .sidebar { position: fixed; top: 0; left: 0; height: 100vh; transform: translateX(-100%); }
-            .sidebar.open { transform: translateX(0); }
+            .sidebar { position: fixed; top: 0; left: 0; height: 100vh; transform: translateX(-100%); transition: transform 0.3s ease-in-out; }
+            .sidebar.open { transform: translateX(0); box-shadow: 5px 0 25px rgba(0,0,0,0.7); }
             header { flex-direction: column; align-items: flex-start; padding: 15px 20px; }
             .header-controls { width: 100%; justify-content: space-between; margin-top: 10px; }
-            .cards { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+            
+            /* Maximizing screen space for tables */
+            .page-section { padding: 15px 10px; }
+            .controls-row { flex-direction: column; align-items: stretch; }
+            .controls-row .btn-submit { margin-top: 10px; }
+            
+            .cards { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+            .card { padding: 15px; }
+            
+            .table-container { max-height: calc(100vh - 200px); border-radius: 6px; }
+            .data-table th, .data-table td { padding: 10px 12px; }
+            
             .side-modal { width: 100vw; border-left: none; }
             .form-row, .profile-grid { grid-template-columns: 1fr; }
         }
+        
         @media print {
             body { background: white !important; color: black !important; }
             .sidebar, header, .controls-row, .cards, .charts-grid, .table-container, .modal-header, .action-btns, #login-screen { display: none !important; }
@@ -237,9 +259,9 @@
         <section id="expenditure" class="page-section">
             <div class="controls-row">
                 <h2>Operational Expenses (<span id="expenditure-month-label"></span>)</h2>
-                <div style="display: flex; gap: 10px;">
-                    <button class="btn-submit" style="width:auto; margin:0; background: var(--info);" onclick="downloadExpenditureCSV()"><i class="fas fa-download"></i> Export CSV</button>
-                    <button class="btn-submit" style="width:auto; margin:0;" onclick="openExpenseModal()"><i class="fas fa-plus"></i> Record Expense</button>
+                <div style="display: flex; gap: 10px; width: 100%;">
+                    <button class="btn-submit" style="flex: 1; margin:0; background: var(--info);" onclick="downloadExpenditureCSV()"><i class="fas fa-download"></i> Export</button>
+                    <button class="btn-submit" style="flex: 1; margin:0;" onclick="openExpenseModal()"><i class="fas fa-plus"></i> Record</button>
                 </div>
             </div>
             <div class="table-container"><table class="data-table"><thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Amount (GHS)</th><th>Actions</th></tr></thead><tbody id="expense-tbody"></tbody></table></div>
@@ -733,9 +755,26 @@
 
         function openAddModal() { document.getElementById('staffForm').reset(); document.getElementById('editIdx').value = -1; document.getElementById('modalTitle').innerText = "Manage Personnel"; document.getElementById('formSubmitBtn').innerText = "Register to Database"; document.getElementById('modalOverlay').classList.add('active'); document.getElementById('staffModal').classList.add('active'); }
         function openExpenseModal() { document.getElementById('expenseForm').reset(); document.getElementById('expEditIdx').value = -1; document.getElementById('expDate').valueAsDate = new Date(); document.getElementById('expenseModalTitle').innerText = "Log Expense"; document.getElementById('expSubmitBtn').innerText = "Save Record"; document.getElementById('modalOverlay').classList.add('active'); document.getElementById('expenseModal').classList.add('active'); }
-        function closeAllModals() { document.querySelectorAll('.side-modal, .modal-overlay, .mobile-sidebar-overlay').forEach(el => el.classList.remove('active')); }
+        
         function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('mobileSidebarOverlay').classList.toggle('active'); }
-        function switchTab(id, el) { document.querySelectorAll('.nav-links li').forEach(l => l.classList.remove('active')); el.classList.add('active'); document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); document.getElementById('page-title').innerText = el.innerText.trim(); if(window.innerWidth <= 768) closeAllModals(); }
+        
+        function closeAllModals() { 
+            document.querySelectorAll('.side-modal, .modal-overlay, .mobile-sidebar-overlay').forEach(el => el.classList.remove('active')); 
+            document.getElementById('sidebar').classList.remove('open');
+        }
+        
+        function switchTab(id, el) { 
+            document.querySelectorAll('.nav-links li').forEach(l => l.classList.remove('active')); 
+            el.classList.add('active'); 
+            document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active')); 
+            document.getElementById(id).classList.add('active'); 
+            document.getElementById('page-title').innerText = el.innerText.trim(); 
+            
+            // Auto-close sidebar on mobile after clicking a link
+            if(window.innerWidth <= 768) {
+                closeAllModals(); 
+            }
+        }
 
         // 11. PAYSLIP GENERATION
         function printPayslip(i, silent = false) {
