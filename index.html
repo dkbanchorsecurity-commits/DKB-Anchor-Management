@@ -34,7 +34,7 @@
         .login-wrapper { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: var(--bg-color); z-index: 9999; display: flex; justify-content: center; align-items: center; transition: 0.4s ease; padding: 20px; }
         .login-wrapper.hidden { opacity: 0; visibility: hidden; }
         .login-box { background: var(--secondary-color); padding: 40px 30px; border-radius: 10px; border-top: 5px solid var(--accent-color); box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 100%; max-width: 400px; text-align: center; }
-        .login-box img { max-height: 80px; margin-bottom: 15px; max-width: 100%;}
+        .login-box img { max-height: 100px; margin-bottom: 20px; max-width: 100%; object-fit: contain; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3)); }
         .login-box h2 { color: var(--text-color); margin-bottom: 5px; font-size: 1.5rem; text-transform: uppercase;}
         .login-box p { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 25px; }
         .input-group { position: relative; margin-bottom: 20px; }
@@ -46,7 +46,7 @@
         /* --- SIDEBAR --- */
         .sidebar { width: 260px; background-color: var(--primary-color); display: flex; flex-direction: column; z-index: 1000; border-right: 1px solid #1a3a5a; transition: transform 0.3s ease; }
         .sidebar-logo-container { padding: 30px 20px; text-align: center; border-bottom: 1px solid rgba(212, 175, 55, 0.2); }
-        .sidebar-logo-container img { max-width: 100%; height: auto; max-height: 130px; object-fit: contain; }
+        .sidebar-logo-container img { max-width: 100%; height: auto; max-height: 130px; object-fit: contain; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3)); }
         .nav-links { list-style: none; margin-top: 20px; flex-grow: 1; display: flex; flex-direction: column; overflow-y: auto;}
         .nav-links li { padding: 15px 25px; cursor: pointer; transition: 0.3s; color: var(--text-muted); display: flex; align-items: center; gap: 15px; }
         .nav-links li i { width: 20px; color: var(--accent-color); }
@@ -172,7 +172,7 @@
 
     <div id="login-screen" class="login-wrapper">
         <div class="login-box">
-            <img id="login-logo" src="logo.png" alt="Company Logo">
+            <img id="login-logo" src="" alt="Company Logo">
             <h2>DKB Anchor Security</h2>
             <p>Authorized Personnel Only</p>
             <form id="login-form" onsubmit="handleLogin(event)">
@@ -195,7 +195,7 @@
 
     <div class="mobile-sidebar-overlay" id="mobileSidebarOverlay" onclick="toggleSidebar()"></div>
     <aside class="sidebar" id="sidebar">
-        <div class="sidebar-logo-container"><img id="mainLogo" src="logo.png" alt="Company Logo"></div>
+        <div class="sidebar-logo-container"><img id="mainLogo" src="" alt="Company Logo"></div>
         <ul class="nav-links">
             <li class="active" onclick="switchTab('dashboard', this)"><i class="fas fa-chart-pie"></i> Dashboard</li>
             <li onclick="switchTab('employees', this)"><i class="fas fa-users-cog"></i> Employee Mgmt</li>
@@ -216,6 +216,7 @@
             <div class="header-controls">
                 <div class="live-clock"><i class="far fa-clock"></i><span id="live-time">00:00:00</span></div>
                 <select id="monthSelector" class="month-filter" onchange="changeMonth()"></select>
+                <button class="btn-submit" style="margin:0; padding: 8px 15px; width:auto; border-radius:20px;" onclick="forceSync()" title="Refresh Data"><i class="fas fa-sync-alt"></i></button>
             </div>
         </header>
 
@@ -365,11 +366,10 @@
         let employees = [], payrollDB = {}, expensesDB = {}, auditData = [], currentMonthKey = "", currentPayslipName = "";
         let deployChart = null, financeChart = null;
 
-        // 4. DATA SYNC (LOCAL FIRST -> CLOUD)
+        // 4. DATA SYNC (CLOUD FIRST -> LOCAL FALLBACK)
         async function syncSave(key, data) {
             try {
                 await localDB.systemData.put({ id: key, value: data });
-                
                 if(firebase.auth().currentUser) {
                     await db.collection("systemData").doc(key).set({ value: data });
                 }
@@ -378,21 +378,35 @@
 
         async function syncLoad(key) {
             try {
+                // 1. ALWAYS try Firebase Cloud first if online (True Cross-Device Sync)
+                if (navigator.onLine && firebase.auth().currentUser) {
+                    try {
+                        const snap = await db.collection("systemData").doc(key).get();
+                        if (snap.exists) {
+                            const cloudData = snap.data().value;
+                            await localDB.systemData.put({ id: key, value: cloudData }); // Refresh local cache
+                            return cloudData;
+                        }
+                    } catch(e) { console.warn("Cloud sync delayed, using local cache.", e); }
+                }
+
+                // 2. Offline Fallback: Load from Local IndexedDB
                 const localRes = await localDB.systemData.get(key);
                 if (localRes !== undefined) {
                     return localRes.value; 
                 }
-
-                if(firebase.auth().currentUser) {
-                    const snap = await db.collection("systemData").doc(key).get();
-                    if (snap.exists) {
-                        const cloudData = snap.data().value;
-                        await localDB.systemData.put({ id: key, value: cloudData }); 
-                        return cloudData;
-                    }
-                }
+                
                 return null;
             } catch (err) { console.error("Load Error:", err); return null; }
+        }
+
+        async function forceSync() {
+            if(!navigator.onLine) return alert("You are offline. Cannot fetch from cloud.");
+            const btn = document.querySelector('.fa-sync-alt');
+            btn.classList.add('fa-spin');
+            await bootSystem();
+            btn.classList.remove('fa-spin');
+            log("Manual cloud synchronization completed.");
         }
 
         // 5. AUTHENTICATION LOGIC
@@ -440,7 +454,7 @@
             log("Admin securely logged out.");
             setTimeout(() => {
                 firebase.auth().signOut().then(() => window.location.reload()); 
-            }, 400); // Small delay allows log to save before refresh
+            }, 400); 
         }
 
         // 6. SYSTEM INITIALIZATION
@@ -469,7 +483,7 @@
                 for (let i = 0; i < 12; i++) {
                     const key = `${m[i]} ${y}`;
                     const sel = (i === now.getMonth() && y === currYear) ? "selected" : "";
-                    if (sel) currentMonthKey = key;
+                    if (sel && !currentMonthKey) currentMonthKey = key; 
                     html += `<option value="${key}" ${sel}>${key}</option>`;
                 }
             }
@@ -800,7 +814,7 @@
 
             document.getElementById('payslip-render-area').innerHTML = `
                 <div style="text-align:center; border-bottom:2px solid #eee; padding-bottom:20px; margin-bottom:20px;">
-                    <img src="logo.png" style="max-height:70px; margin-bottom:10px;">
+                    <img src="${COMPANY_LOGO_URL}" style="max-height:70px; margin-bottom:10px;">
                     <h2 style="color:#0A2239; margin:0;">DKB ANCHOR SECURITY SERVICES</h2><p style="margin:5px 0 0 0; color:#666;">Official Employee Payslip</p>
                 </div>
                 <div style="display:flex; justify-content:space-between; margin-bottom:25px; border-bottom:1px dashed #ccc; padding-bottom:20px;">
