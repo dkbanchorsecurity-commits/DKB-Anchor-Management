@@ -88,7 +88,7 @@
             max-height: calc(100vh - 250px); 
             overflow-y: auto; 
             overflow-x: auto; 
-            -webkit-overflow-scrolling: touch; /* Smooth mobile scroll */
+            -webkit-overflow-scrolling: touch; 
             border-radius: 10px; 
             background: var(--secondary-color); 
             border: 1px solid #1a3a5a; 
@@ -144,7 +144,6 @@
             header { flex-direction: column; align-items: flex-start; padding: 15px 20px; }
             .header-controls { width: 100%; justify-content: space-between; margin-top: 10px; }
             
-            /* Maximizing screen space for tables */
             .page-section { padding: 15px 10px; }
             .controls-row { flex-direction: column; align-items: stretch; }
             .controls-row .btn-submit { margin-top: 10px; }
@@ -355,7 +354,7 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // 2. DEXIE.JS LOCAL DB INITIALIZATION (UPGRADED SCHEMA)
+        // 2. DEXIE.JS LOCAL DB INITIALIZATION
         const localDB = new Dexie("DKB_Anchor_V2");
         localDB.version(1).stores({
             systemData: 'id'
@@ -369,7 +368,6 @@
         // 4. DATA SYNC (LOCAL FIRST -> CLOUD)
         async function syncSave(key, data) {
             try {
-                // Save locally as a complete snapshot
                 await localDB.systemData.put({ id: key, value: data });
                 
                 if(firebase.auth().currentUser) {
@@ -380,13 +378,11 @@
 
         async function syncLoad(key) {
             try {
-                // Try Local DB first
                 const localRes = await localDB.systemData.get(key);
                 if (localRes !== undefined) {
                     return localRes.value; 
                 }
 
-                // Fallback to Firebase Cloud
                 if(firebase.auth().currentUser) {
                     const snap = await db.collection("systemData").doc(key).get();
                     if (snap.exists) {
@@ -440,7 +436,12 @@
             }
         });
 
-        function logout() { firebase.auth().signOut().then(() => window.location.reload()); }
+        function logout() { 
+            log("Admin securely logged out.");
+            setTimeout(() => {
+                firebase.auth().signOut().then(() => window.location.reload()); 
+            }, 400); // Small delay allows log to save before refresh
+        }
 
         // 6. SYSTEM INITIALIZATION
         async function bootSystem() {
@@ -584,7 +585,6 @@
             document.getElementById('stat-cost').innerText = `GHS ${mCost.toLocaleString(undefined, {minimumFractionDigits:2})}`;
             document.getElementById('stat-exp').innerText = `GHS ${mExp.toLocaleString(undefined, {minimumFractionDigits:2})}`;
             
-            // Apply Dynamic Red/Green Colors to Profit
             const monthlyProfit = mRev - mCost - mExp;
             const statProfitEl = document.getElementById('stat-profit');
             statProfitEl.innerText = `GHS ${monthlyProfit.toLocaleString(undefined, {minimumFractionDigits:2})}`;
@@ -619,7 +619,7 @@
             financeChart = new Chart(document.getElementById('financialChart').getContext('2d'), { type: 'bar', data: { labels: labels, datasets: [{ label: 'Revenue (GHS)', data: rev, backgroundColor: '#3498db' }, { label: 'Net Profit (GHS)', data: prof, backgroundColor: '#2ecc71' }] }, options: opt });
         }
 
-        // 9. STAFF ACTIONS (Create, Edit, Delete, View, Reassign)
+        // 9. STAFF ACTIONS
         function saveStaff() {
             const n = document.getElementById('fName').value; if(!n) return;
             const idx = parseInt(document.getElementById('editIdx').value);
@@ -725,12 +725,12 @@
             }
         }
 
-        // 10. EXPENSES & UTILITIES
+        // 10. EXPENSES & PAYROLL UTILITIES
         function saveExpense() {
             const d = document.getElementById('expDate').value, c = document.getElementById('expCategory').value, desc = document.getElementById('expDesc').value, a = parseFloat(document.getElementById('expAmount').value);
             if(!d || !desc || isNaN(a)) return;
             const idx = parseInt(document.getElementById('expEditIdx').value), data = { date: d, category: c, desc: desc, amount: a };
-            if(idx === -1) { expensesDB[currentMonthKey].push(data); log(`Expense: GHS ${a.toFixed(2)} (${c}) - "${desc}"`); } else { expensesDB[currentMonthKey][idx] = data; log(`Updated Expense: "${desc}"`); }
+            if(idx === -1) { expensesDB[currentMonthKey].push(data); log(`Logged Expense: GHS ${a.toFixed(2)} (${c}) - "${desc}"`); } else { expensesDB[currentMonthKey][idx] = data; log(`Updated Expense: "${desc}"`); }
             syncSave('expensesDB', expensesDB); updateAll(); closeAllModals();
         }
 
@@ -748,9 +748,28 @@
             }
         }
 
-        function updateMoney(i, key, val) { payrollDB[currentMonthKey][i][key] = parseFloat(val)||0; syncSave('payrollDB', payrollDB); updateAll(); }
-        function togglePaid(i) { payrollDB[currentMonthKey][i].paid = !payrollDB[currentMonthKey][i].paid; syncSave('payrollDB', payrollDB); renderPayrollAndStats(); }
-        function changeMonth() { currentMonthKey = document.getElementById('monthSelector').value; updateAll(); }
+        function updateMoney(i, key, val) { 
+            payrollDB[currentMonthKey][i][key] = parseFloat(val)||0; 
+            syncSave('payrollDB', payrollDB); 
+            updateAll(); 
+            const s = employees.find(e => e.id === payrollDB[currentMonthKey][i].id);
+            log(`Updated ${key.toUpperCase()} for ${s ? s.name : 'Staff'} to GHS ${parseFloat(val)||0}`);
+        }
+
+        function togglePaid(i) { 
+            payrollDB[currentMonthKey][i].paid = !payrollDB[currentMonthKey][i].paid; 
+            syncSave('payrollDB', payrollDB); 
+            renderPayrollAndStats(); 
+            const s = employees.find(e => e.id === payrollDB[currentMonthKey][i].id);
+            log(`Marked salary as ${payrollDB[currentMonthKey][i].paid ? 'PAID' : 'PENDING'} for ${s ? s.name : 'Staff'}`);
+        }
+
+        function changeMonth() { 
+            currentMonthKey = document.getElementById('monthSelector').value; 
+            updateAll(); 
+            log(`Changed dashboard view to ${currentMonthKey}`);
+        }
+
         function filterData(id, q) { document.querySelectorAll(`#${id} tr`).forEach(r => r.style.display = r.innerText.toLowerCase().includes(q.toLowerCase()) ? "" : "none"); }
 
         function openAddModal() { document.getElementById('staffForm').reset(); document.getElementById('editIdx').value = -1; document.getElementById('modalTitle').innerText = "Manage Personnel"; document.getElementById('formSubmitBtn').innerText = "Register to Database"; document.getElementById('modalOverlay').classList.add('active'); document.getElementById('staffModal').classList.add('active'); }
@@ -770,10 +789,7 @@
             document.getElementById(id).classList.add('active'); 
             document.getElementById('page-title').innerText = el.innerText.trim(); 
             
-            // Auto-close sidebar on mobile after clicking a link
-            if(window.innerWidth <= 768) {
-                closeAllModals(); 
-            }
+            if(window.innerWidth <= 768) { closeAllModals(); }
         }
 
         // 11. PAYSLIP GENERATION
@@ -803,11 +819,16 @@
                 </table>
                 <div style="margin-top:50px; text-align:right;"><div style="border-bottom:1px solid #333; width:200px; display:inline-block; margin-bottom:5px;"></div><br>Authorized Signature</div>
             `;
-            if(!silent) { document.getElementById('modalOverlay').classList.add('active'); document.getElementById('payslipModal').classList.add('active'); }
+            if(!silent) { 
+                document.getElementById('modalOverlay').classList.add('active'); 
+                document.getElementById('payslipModal').classList.add('active'); 
+                log(`Viewed/Generated Payslip for ${s.name} (${currentMonthKey})`);
+            }
         }
 
         function generatePDF(btn, icon) {
             const opt = { margin: 0.3, filename: currentPayslipName, image: {type:'jpeg', quality:0.98}, html2canvas: {scale:2}, jsPDF: {unit:'in', format:'letter'} };
+            log(`Downloaded PDF Payslip: ${currentPayslipName}`);
             html2pdf().set(opt).from(`<div style="padding:40px; background:#fff; width:650px; font-family:sans-serif;">${document.getElementById('payslip-render-area').innerHTML}</div>`).save().then(() => { btn.innerHTML = icon; btn.disabled = false; });
         }
         function directDownloadPDF(i) { const b = document.getElementById(`dl-btn-${i}`); const ic = b.innerHTML; b.innerHTML='<i class="fas fa-spinner fa-spin"></i>'; b.disabled=true; printPayslip(i,true); generatePDF(b,ic); }
@@ -821,12 +842,14 @@
             if (!expensesDB[currentMonthKey] || expensesDB[currentMonthKey].length === 0) return alert(`No expenses recorded for ${currentMonthKey}.`);
             let csv = "Date,Category,Description,Amount (GHS)\r\n";
             expensesDB[currentMonthKey].forEach(e => { csv += `"${e.date}","${e.category}","${e.desc.replace(/"/g, '""')}","${e.amount.toFixed(2)}"\r\n`; });
+            log(`Exported Expenditure CSV for ${currentMonthKey}`);
             downloadCSV(csv, `DKB_Expenses_${currentMonthKey.replace(' ', '_')}.csv`);
         }
         function downloadAuditCSV() {
             if (auditData.length === 0) return alert("Audit log is empty.");
             let csv = "Date,Time,System Event\r\n";
             [...auditData].reverse().forEach(r => { csv += `"${r.date}","${r.time}","${r.msg.replace(/"/g, '""')}"\r\n`; });
+            log(`Exported System Audit Trail CSV`);
             downloadCSV(csv, `DKB_Audit_Trail_${new Date().toISOString().split('T')[0]}.csv`);
         }
         function downloadCSV(content, filename) {
